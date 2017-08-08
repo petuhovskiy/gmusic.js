@@ -174,9 +174,23 @@ export default class PlaybackNamespace extends GMusicNamespace {
     window.SJBpost('toggleVisualization'); // eslint-disable-line
   }
 
+  tryUpdateTrack() {
+    const currentTrack = this.getCurrentTrack();
+    // Make sure that this is the first of the notifications for the
+    // insertion of the song information elements.
+    if (!currentTrack.equals(this.lastTrack)) {
+      this.emit('change:track', currentTrack);
+
+      this.lastTrack = currentTrack;
+    }
+  }
+
   _hookEvents() {
     // Playback Time Event
     this._progressEl.addEventListener('value-change', () => {
+      if (!this.lastTrack || this.lastTrack.duration !== this.getTotalTime) {
+        this.tryUpdateTrack();
+      }
       this.emit('change:playback-time', {
         current: this.getCurrentTime(),
         total: this.getTotalTime(),
@@ -184,21 +198,13 @@ export default class PlaybackNamespace extends GMusicNamespace {
     });
 
     // Change Track Event
-    let lastTrack;
     new MutationObserver((mutations) => {
       mutations.forEach((m) => {
         for (let i = 0; i < m.addedNodes.length; i++) {
           // DEV: We can encounter a text node, verify we have a `classList` to assert against
           const target = m.addedNodes[i];
           if (target.classList && target.classList.contains('now-playing-info-wrapper')) {
-            const currentTrack = this.getCurrentTrack();
-            // Make sure that this is the first of the notifications for the
-            // insertion of the song information elements.
-            if (!currentTrack.equals(lastTrack)) {
-              this.emit('change:track', currentTrack);
-
-              lastTrack = currentTrack;
-            }
+            this.tryUpdateTrack();
           }
         }
       });
